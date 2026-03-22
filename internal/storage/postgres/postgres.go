@@ -1,3 +1,4 @@
+// Файл: internal/storage/postgres/postgres.go
 package postgres
 
 import (
@@ -5,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	// Замени "url-shortener" на имя своего модуля из go.mod!
 	"url-shortener/internal/storage"
 
 	"github.com/jackc/pgx/v5"
@@ -24,13 +26,11 @@ func New(db *pgxpool.Pool) *Storage {
 func (s *Storage) SaveURL(ctx context.Context, urlToSave string, alias string) (int64, error) {
 	const op = "storage.postgres.SaveURL"
 
-	// ВПИШИ SQL ЗАПРОС №1: INSERT INTO ... RETURNING id
 	query := `INSERT INTO urls (original_url, alias) VALUES ($1, $2) RETURNING id`
 
 	var id int64
 	err := s.db.QueryRow(ctx, query, urlToSave, alias).Scan(&id)
 	if err != nil {
-		// Проверяем, не является ли ошибка нарушением уникальности (алиас уже занят)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return 0, fmt.Errorf("%s: %w", op, storage.ErrURLExists)
@@ -45,7 +45,6 @@ func (s *Storage) SaveURL(ctx context.Context, urlToSave string, alias string) (
 func (s *Storage) GetURL(ctx context.Context, alias string) (string, error) {
 	const op = "storage.postgres.GetURL"
 
-	// ВПИШИ SQL ЗАПРОС №2: SELECT original_url FROM ...
 	query := `SELECT original_url FROM urls WHERE alias = $1`
 
 	var resURL string

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"url-shortener/internal/storage/postgres"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -53,4 +54,31 @@ func main() {
 	}
 
 	log.Info("DB connection established successfully! Monster is awake.")
+
+	store := postgres.New(pool)
+
+	// 2. Тестовое сохранение
+	id, err := store.SaveURL(context.Background(), "https://google.com", "google")
+	if err != nil {
+		log.Error("failed to save test url (probably already exists)", slog.String("error", err.Error()))
+	} else {
+		log.Info("successfully saved test url", slog.Int64("id", id))
+	}
+
+	// 3. Тестовое получение
+	savedURL, err := store.GetURL(context.Background(), "google")
+	if err != nil {
+		log.Error("failed to get test url", slog.String("error", err.Error()))
+	} else {
+		log.Info("successfully got test url", slog.String("url", savedURL))
+	}
+
+	// 4. Проверяем ошибку NotFound (алиас, которого нет)
+	_, err = store.GetURL(context.Background(), "not_exist")
+	if err != nil {
+		log.Info("expected error for missing url", slog.String("error", err.Error()))
+	} else {
+		log.Error("WAIT, WHY NO ERROR FOR MISSING URL?!")
+	}
+
 }
