@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"os"
+	"url-shortener/internal/http/handlers/redirect"
+	"url-shortener/internal/http/handlers/save"
 	"url-shortener/internal/storage/postgres"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -57,20 +60,22 @@ func main() {
 
 	store := postgres.New(pool)
 
-	// 2. Тестовое сохранение
-	id, err := store.SaveURL(context.Background(), "https://google.com", "google")
-	if err != nil {
-		log.Error("failed to save test url (probably already exists)", slog.String("error", err.Error()))
-	} else {
-		log.Info("successfully saved test url", slog.Int64("id", id))
+	log.Info("starting server", slog.String("port", "8080"))
+
+	mux := http.NewServeMux()
+
+	// Передаем наш store в хендлер.яё действии!
+	mux.HandleFunc("POST /save", save.New(log, store))
+
+	mux.HandleFunc("GET /{alias}", redirect.New(log, store))
+
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
 	}
 
-	// 3. Тестовое получение
-	savedURL, err := store.GetURL(context.Background(), "google")
-	if err != nil {
-		log.Error("failed to get test url", slog.String("error", err.Error()))
-	} else {
-		log.Info("successfully got test url", slog.String("url", savedURL))
+	if err := srv.ListenAndServe(); err != nil {
+		log.Error("failed to start server", slog.String("error", err.Error()))
 	}
 
 	// 4. Проверяем ошибку NotFound (алиас, которого нет)
